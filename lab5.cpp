@@ -4,24 +4,26 @@
 using namespace std;
 
 void error_handler(int signal_number){
-  cout << "Error occurred: ";
+  cout << "Error occurred: [" << signal_number << "]" << endl;
   switch(signal_number) {
-    case SIGHUP: cout << "Cotrolling TTY is left me. Teminating..." << endl; break;
-    case SIGINT: cout << "Interrupted from the keyboad. Teminating..." << endl; break;
-    case 10: cout << "SIGNAL 10" << endl; exit(1);
-    case 12: cout << "SIGNAL 12" << endl; exit(2);
-    default: cout << "Unknown" << endl; break;
+    case SIGHUP: cout << "Cotrolling TTY is left me. Teminating..." << endl; exit(0);
+    case SIGINT: cout << "Interrupted from the keyboad. Teminating..." << endl; exit(0);
+    case SIGFPE: cout << "Division by zero detected. Teminating..." << endl; exit(0);
+    case SIGSEGV: cout << "Out of bounds detected. Teminating..." << endl; exit(0);
+    default: cout << "Unknown signal. Unexpected thing happened" << endl; exit(1);
   }
 }
 
 void do_error(int n) {
+  cout << "[do_error: arg " << n << "]" << endl;
+  char s[100];
+
   switch(n) {
-    case 1: throw overflow_error("Error. Division by zero"); break;
-    case 2: throw out_of_range("Error. Pointer is incorrect"); break;
-    case 3:
-    case 4: throw exception(); break;
-    default: cout << "Unknown error" << endl; break;
+    case 1: cout << n / (n - 1); break;
+    case 2: s[1000000000000000] = n; break;
+    default: cout << "Unknown error detected. Terminating..." << endl; break;
   }
+  exit(EXIT_FAILURE);
 }
 
 
@@ -33,13 +35,13 @@ int main(int argc, char *argv[]) {
   try {
     // stoi >>> atoi
     proc_arg = stoi(argv[1]);
-    // cout << "[proc_arg is " << proc_arg << " now!]" << endl;
   } catch(...) {  }
 
   // discard all digits in mask and +SIGHUP +SIGINT
   sigemptyset(&mask);
-  // sigaddset(&mask, SIGHUP);
-  // sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGHUP);
+  sigaddset(&mask, SIGTSTP);
+  sigaddset(&mask, SIGINT);
 
   // fetch signal mask for blocking while processing
   sigprocmask(SIG_BLOCK, &mask, NULL);
@@ -47,27 +49,27 @@ int main(int argc, char *argv[]) {
   // fetch functions to deal with signals
   signal(SIGHUP, error_handler);
   signal(SIGINT, error_handler);
-  signal(10, error_handler);
-  signal(12, error_handler);
+  // Floating point exception
+  signal(SIGFPE, error_handler);
+  // Invalid memory reference
+  signal(SIGSEGV, error_handler);
 
-  try {
-    do_error(proc_arg);
-  }
-  catch(overflow_error e) {
-    cout << "[overflow_error APPEARS]" << endl;
-    kill(0, 10);
-  }
-  catch(out_of_range e) {
-    cout << "[out_of_range APPEARS]" << endl;
-    kill(0, 12);
-  }
-  catch(...) {
-    cout << "[SIGINT 'n SIGHUP APPEARS]" << endl;
-    // 2 - SIGINT
-    kill(0, 2);
-    // 1 - SIGHUP
-    kill(0, 1);
-  }
+  char a;
+  cin >> a;
+
+  // try {
+  do_error(proc_arg);
+  // }
+  // catch(exception &x) {
+  //   cout << "[SIGINT 'n SIGHUP APPEARS]" << x.what() << endl;
+  //   // 2 - SIGINT
+  //   kill(0, 2);
+  //   // 1 - SIGHUP
+  //   kill(0, 1);
+  // }
+
+  char c;
+  cin >> c;
 
   return 0;
 }
